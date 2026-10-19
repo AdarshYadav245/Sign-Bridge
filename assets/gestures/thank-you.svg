@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <rect width="120" height="120" rx="16" fill="#1e293b"/>
+  <!-- Hand at chin moving outward -->
+  <path d="M50 48c0-8 6-14 14-14s14 6 14 14v16H50V48z" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <!-- Forward outward trajectory arc -->
+  <path d="M64 68v24m-6-6 6 6 6-6" stroke="#10b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="60" y="114" fill="#94a3b8" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">THANK YOU (Out)</text>
+</svg>

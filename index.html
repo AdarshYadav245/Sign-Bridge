@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignBridge - ASL Fingerspelling & Word Gesture Assistive System</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- MediaPipe Hands & Camera Utils CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
+            <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path>
+            <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path>
+            <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>SignBridge</h1>
+          <span class="brand-tag">ASL Assistive Translator</span>
+        </div>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="mode-selector" role="group" aria-label="Recognition Mode">
+        <button id="btn-mode-letters" class="mode-btn" title="Static fingerspelling A-Z">Letters</button>
+        <button id="btn-mode-words" class="mode-btn" title="Dynamic word gestures (HELLO, YES, NO...)">Words</button>
+        <button id="btn-mode-both" class="mode-btn active" title="Smart arbitration between gestures and letters">Both (Smart)</button>
+      </div>
+
+      <!-- Action Utilities -->
+      <div class="nav-actions">
+        <div id="status-badge" class="status-pill status-idle">Camera off</div>
+        <button id="btn-open-ref" class="btn btn-secondary btn-sm" title="View gesture guide and signs">
+          <span class="icon">📖</span> ASL Guide
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-content">
+      <!-- Left Column: Video Feed & Real-time HUD -->
+      <section class="viewport-panel">
+        <div class="camera-card">
+          <div class="video-container">
+            <video id="webcam-video" playsinline muted></video>
+            <canvas id="output-canvas"></canvas>
+
+            <!-- Floating Candidate HUD Overlay -->
+            <div id="candidate-badge" class="hud-candidate-card">
+              <div class="ring-wrapper">
+                <svg class="progress-ring" width="100" height="100" viewBox="0 0 100 100">
+                  <circle class="ring-bg" cx="50" cy="50" r="44"></circle>
+                  <circle id="hold-progress-fill" class="ring-fill" cx="50" cy="50" r="44"></circle>
+                </svg>
+                <div class="candidate-symbol" id="candidate-text">—</div>
+              </div>
+              <div class="candidate-meta">
+                <div class="meta-row">
+                  <span class="meta-label">Match</span>
+                  <span id="candidate-score" class="score-pill">0%</span>
+                </div>
+                <div id="hold-progress-label" class="progress-hint">Ready for sign</div>
+              </div>
+            </div>
+
+            <!-- Interactive Practice Coach Banner -->
+            <div id="coach-banner" class="coach-banner hidden">
+              <div class="coach-left">
+                <span class="coach-badge">🎯 COACH</span>
+                <div class="coach-text-group">
+                  <span class="coach-target-title">Target: <strong id="coach-target-name">A</strong></span>
+                  <span class="coach-target-hint" id="coach-target-hint">Fist with thumb upright along side</span>
+                </div>
+              </div>
+              <div id="coach-match-status" class="coach-status-pill status-awaiting">Awaiting sign...</div>
+              <button id="btn-close-coach" class="coach-close-btn" title="Exit practice mode">&times;</button>
+            </div>
+
+            <!-- Active Mode Watermark -->
+            <div class="hud-watermark" id="current-mode-display">Combined Mode (Smart Arbitration)</div>
+          </div>
+
+          <!-- Camera Controls Toolbar -->
+          <div class="camera-toolbar">
+            <button id="btn-toggle-camera" class="btn btn-primary">
+              <span class="icon">📷</span> Start Camera
+            </button>
+            <button id="btn-flip-camera" class="btn btn-icon active" title="Mirror Camera Feed">
+              <span class="icon">⇄</span> Mirror
+            </button>
+            <button id="btn-toggle-skeleton" class="btn btn-icon active" title="Toggle AI Bone HUD">
+              <span class="icon">⚡</span> Skeleton HUD
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Visual Guidance Chart for Letters and Words -->
+        <div class="card guidance-chart-card">
+          <div class="guidance-header">
+            <div class="guidance-title-area">
+              <div class="title-with-badge">
+                <h3>Visual Sign Guidance Chart</h3>
+                <span class="live-pill">Interactive</span>
+              </div>
+              <span class="subtext">Handbook for ASL signs. Click any card to activate real-time coach feedback!</span>
+            </div>
+            <div class="guidance-toolbar">
+              <div class="guidance-search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="guidance-search" placeholder="Filter signs (e.g. A, V, HELLO)..." class="guidance-search-input">
+              </div>
+              <div class="guidance-tab-group">
+                <button id="tab-btn-letters" class="guidance-tab-btn active" data-tab="letters">
+                  🔤 Letters (A–Z)
+                </button>
+                <button id="tab-btn-words" class="guidance-tab-btn" data-tab="words">
+                  💬 Word Gestures
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Letters Guidance Panel -->
+          <div id="guidance-view-letters" class="guidance-view active">
+            <!-- ASL Alphabet Image Chart Banner -->
+            <div class="alphabet-chart-banner">
+              <div class="chart-banner-header">
+                <div class="banner-title-group">
+                  <span class="banner-icon">🖼️</span>
+                  <h4>ASL Alphabet Image Chart</h4>
+                  <span class="badge-tag">Visual Handbook</span>
+                </div>
+                <div class="chart-banner-actions">
+                  <label class="btn btn-secondary btn-xs chart-upload-btn" title="Upload custom chart image">
+                    <span class="icon">📁</span> Upload Custom Image
+                    <input type="file" id="chart-image-upload" accept="image/*" class="hidden-file-input">
+                  </label>
+                  <button id="btn-zoom-chart" class="btn btn-secondary btn-xs" title="View Fullscreen Chart">
+                    <span class="icon">🔍</span> Zoom / Expand
+                  </button>
+                </div>
+              </div>
+              <div class="chart-preview-wrapper" id="chart-preview-box" title="Click to view full-resolution image chart">
+                <img id="asl-chart-img" src="assets/asl-alphabet-chart.png" alt="ASL Alphabet Fingerspelling Chart" class="chart-full-image">
+                <div class="chart-click-hint">Click image to expand full size 🔍</div>
+              </div>
+            </div>
+
+            <div class="letters-divider">
+              <span>Interactive Letter Cards & Practice</span>
+            </div>
+
+            <div id="letters-chart-grid" class="letters-chart-grid"></div>
+          </div>
+
+          <!-- Words Guidance Panel -->
+          <div id="guidance-view-words" class="guidance-view">
+            <div id="words-chart-grid" class="words-chart-grid"></div>
+          </div>
+        </div>
+
+        <!-- Two-Way Assistive Captions (Speech to Text) -->
+        <div class="stt-panel">
+          <div class="stt-header">
+            <div class="stt-title">
+              <span class="dot-indicator"></span> Reverse Speech Captions
+            </div>
+            <button id="btn-toggle-stt" class="btn btn-secondary btn-xs">
+              <span class="icon">🎤</span> Listen & Caption
+            </button>
+          </div>
+          <div id="stt-caption-box" class="stt-box hidden">
+            <div id="stt-transcript" class="stt-text">Listening for speech...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Sentence Composition & Speech Output -->
+      <section class="control-panel">
+        <div class="card sentence-card">
+          <div class="card-header">
+            <div class="header-title">
+              <h2>Composed Sentence</h2>
+              <span class="subtext">Confirmed letters and words appear here</span>
+            </div>
+            <button id="btn-copy" class="btn btn-secondary btn-sm" title="Copy text to clipboard">
+              <span class="icon">📋</span> Copy
+            </button>
+          </div>
+
+          <!-- Composed Textarea -->
+          <div class="text-input-wrapper">
+            <textarea id="text-output" placeholder="Signs will be transcribed here as you hold them steady..." rows="4"></textarea>
+          </div>
+
+          <!-- Predictive Word Suggestions -->
+          <div class="suggestions-wrapper">
+            <span class="suggestions-label">Suggestions:</span>
+            <div id="suggestions-container" class="suggestions-list">
+              <span class="no-suggestions">Start fingerspelling for word suggestions...</span>
+            </div>
+          </div>
+
+          <!-- Sentence Editing Buttons -->
+          <div class="editing-toolbar">
+            <button id="btn-add-space" class="btn btn-secondary" title="Add Space (Keyboard: Space)">
+              <span class="icon">␣</span> Space
+            </button>
+            <button id="btn-backspace" class="btn btn-secondary" title="Delete Last Character (Keyboard: Backspace)">
+              <span class="icon">⌫</span> Backspace
+            </button>
+            <button id="btn-undo" class="btn btn-secondary" title="Undo Last Change">
+              <span class="icon">↩</span> Undo
+            </button>
+            <button id="btn-clear" class="btn btn-danger-ghost" title="Clear all composed text">
+              <span class="icon">🗑</span> Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Speech Synthesis Controls Card -->
+        <div class="card speech-card">
+          <div class="card-header">
+            <div class="header-title">
+              <h3>Speech Synthesis</h3>
+              <span class="subtext">Read confirmed text aloud</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-auto-speak">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Auto-speak confirmed signs</span>
+            </label>
+          </div>
+
+          <div class="speech-controls-grid">
+            <button id="btn-speak" class="btn btn-accent btn-lg" title="Speak Composed Sentence (Keyboard: Enter)">
+              <span class="icon">🔊</span> Speak Sentence
+            </button>
+
+            <div class="settings-group">
+              <label for="voice-select">Voice</label>
+              <select id="voice-select" class="form-select"></select>
+            </div>
+
+            <div class="settings-group">
+              <div class="slider-header">
+                <label for="speech-rate">Speed</label>
+                <span id="speech-rate-label" class="slider-val">1.0x</span>
+              </div>
+              <input type="range" id="speech-rate" min="0.6" max="1.6" step="0.1" value="1.0" class="form-range">
+            </div>
+
+            <div class="settings-group full-col">
+              <label for="sensitivity-select">🎯 Recognition Sensitivity</label>
+              <select id="sensitivity-select" class="form-select">
+                <option value="easy" selected>⚡ Easy Mode (Fast & Forgiving - Recommended)</option>
+                <option value="balanced">⚖️ Balanced</option>
+                <option value="strict">🎯 Strict Accuracy</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Accuracy Tips Card -->
+        <div class="card tips-card">
+          <div class="tips-header">
+            <span class="icon">💡</span>
+            <h4>Tips for Maximum Accuracy</h4>
+          </div>
+          <ul class="tips-list">
+            <li><strong>Hold Steady:</strong> Keep your hand still for ~0.5s until the circular progress ring completes.</li>
+            <li><strong>Wave to Say HELLO:</strong> Open palm facing camera and wave side-to-side 2–3 times.</li>
+            <li><strong>Nod Fist for YES:</strong> Make a fist and bob it up and down vertically like nodding.</li>
+            <li><strong>Pinch Snap for NO:</strong> Extend index & middle fingers together, then snap them shut to the thumb.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal: ASL Reference Guide -->
+    <div id="reference-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h2 id="modal-title">ASL Gestures & Fingerspelling Reference</h2>
+            <p class="subtext">Guidelines for accurate recognition with MediaPipe Hands</p>
+          </div>
+          <button id="btn-close-ref" class="btn-close" aria-label="Close modal">&times;</button>
+        </div>
+
+        <!-- Reference Tabs -->
+        <div class="modal-tabs">
+          <button class="ref-tab-btn active" data-target="tab-words">Word Gestures</button>
+          <button class="ref-tab-btn" data-target="tab-alphabet">Alphabet A–Z</button>
+          <button class="ref-tab-btn" data-target="tab-accuracy">Accuracy Guide</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Tab 1: Word Gestures -->
+          <div id="tab-words" class="ref-tab-panel active">
+            <div class="gesture-cards-grid">
+              <div class="ref-card">
+                <img src="assets/gestures/hello.gif" alt="HELLO wave animation" class="ref-icon ref-gif">
+                <div class="ref-badge">HELLO</div>
+                <div class="ref-desc">
+                  <strong>Open Palm Wave:</strong> Hold hand up with all 5 fingers open, wave side-to-side 2 to 3 times. Requires lateral motion.
+                </div>
+              </div>
+              <div class="ref-card">
+                <img src="assets/gestures/yes.gif" alt="YES nod animation" class="ref-icon ref-gif">
+                <div class="ref-badge">YES</div>
+                <div class="ref-desc">
+                  <strong>Fist Nod:</strong> Make a fist ('S' pose) and bob it up and down vertically, mimicking a head nodding yes.
+                </div>
+              </div>
+              <div class="ref-card">
+                <img src="assets/gestures/no.gif" alt="NO pinch snap animation" class="ref-icon ref-gif">
+                <div class="ref-badge">NO</div>
+                <div class="ref-desc">
+                  <strong>Pinch Snap:</strong> Extend index and middle fingers together, then snap them shut against the thumb twice.
+                </div>
+              </div>
+              <div class="ref-card">
+                <img src="assets/gestures/thank-you.gif" alt="THANK YOU gesture animation" class="ref-icon ref-gif">
+                <div class="ref-badge">THANK YOU</div>
+                <div class="ref-desc">
+                  <strong>Chin to Front:</strong> Flat hand starting near chin/upper chest, moving forward and slightly down toward camera.
+                </div>
+              </div>
+              <div class="ref-card">
+                <img src="assets/gestures/please.gif" alt="PLEASE gesture animation" class="ref-icon ref-gif">
+                <div class="ref-badge">PLEASE</div>
+                <div class="ref-desc">
+                  <strong>Circular Chest Rub:</strong> Flat open hand rubbing in a circular path over the chest area.
+                </div>
+              </div>
+              <div class="ref-card">
+                <img src="assets/gestures/sorry.gif" alt="SORRY gesture animation" class="ref-icon ref-gif">
+                <div class="ref-badge">SORRY</div>
+                <div class="ref-desc">
+                  <strong>Fist Circular Rub:</strong> Fist with thumb folded, rubbing in a circular path over the chest.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Alphabet A-Z -->
+          <div id="tab-alphabet" class="ref-tab-panel">
+            <div class="modal-chart-preview">
+              <img src="assets/asl-alphabet-chart.png" alt="Complete ASL Alphabet Chart" class="modal-alphabet-chart">
+            </div>
+            <div class="alphabet-grid">
+              <div class="letter-chip"><strong>A</strong><span>Fist, thumb up on side</span></div>
+              <div class="letter-chip"><strong>B</strong><span>4 fingers up, thumb folded</span></div>
+              <div class="letter-chip"><strong>C</strong><span>Curved fingers in C-arc</span></div>
+              <div class="letter-chip"><strong>D</strong><span>Index up, O with other 3</span></div>
+              <div class="letter-chip"><strong>E</strong><span>Fingers curled onto thumb</span></div>
+              <div class="letter-chip"><strong>F</strong><span>Index & thumb loop, 3 up</span></div>
+              <div class="letter-chip"><strong>G</strong><span>Index & thumb sideways</span></div>
+              <div class="letter-chip"><strong>H</strong><span>Index & middle sideways</span></div>
+              <div class="letter-chip"><strong>I</strong><span>Pinky up, others curled</span></div>
+              <div class="letter-chip"><strong>K</strong><span>Index up, middle angled, thumb at PIP</span></div>
+              <div class="letter-chip"><strong>L</strong><span>Index up, thumb out at 90°</span></div>
+              <div class="letter-chip"><strong>M</strong><span>3 fingers over thumb</span></div>
+              <div class="letter-chip"><strong>N</strong><span>2 fingers over thumb</span></div>
+              <div class="letter-chip"><strong>O</strong><span>All fingertips touch thumb</span></div>
+              <div class="letter-chip"><strong>P</strong><span>K sign pointing downward</span></div>
+              <div class="letter-chip"><strong>Q</strong><span>G sign pointing downward</span></div>
+              <div class="letter-chip"><strong>R</strong><span>Index & middle crossed</span></div>
+              <div class="letter-chip"><strong>S</strong><span>Fist, thumb across front</span></div>
+              <div class="letter-chip"><strong>T</strong><span>Thumb between index & middle</span></div>
+              <div class="letter-chip"><strong>U</strong><span>Index & middle together</span></div>
+              <div class="letter-chip"><strong>V</strong><span>Index & middle spread (V)</span></div>
+              <div class="letter-chip"><strong>W</strong><span>Index, middle, ring spread</span></div>
+              <div class="letter-chip"><strong>X</strong><span>Index hooked like trigger</span></div>
+              <div class="letter-chip"><strong>Y</strong><span>Thumb & pinky out (shaka)</span></div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Accuracy Guide -->
+          <div id="tab-accuracy" class="ref-tab-panel">
+            <div class="accuracy-doc">
+              <h4>How SignBridge Achieves High Accuracy</h4>
+              <p>SignBridge uses <strong>3D invariant coordinates</strong> relative to the wrist and middle knuckle. This means hand tilt, rotation, and distance do not disrupt geometric recognition.</p>
+              <ul>
+                <li><strong>Hold-to-Add:</strong> Signs require a brief stable hold (~500ms) to prevent accidental commits during hand movement.</li>
+                <li><strong>Smart Priority:</strong> Dynamic gestures like HELLO and YES take precedence over static letters when hand movement is detected.</li>
+                <li><strong>Cooldown Protection:</strong> After a word or letter is added, an automatic cooldown prevents duplicate repetitions.</li>
+                <li><strong>Lighting:</strong> Make sure your hand is well-lit with clear contrast against your background.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Lightbox Zoom Modal for Alphabet Image Chart -->
+  <div id="chart-lightbox-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+    <div class="lightbox-dialog">
+      <div class="lightbox-header">
+        <h3 id="lightbox-title">ASL Fingerspelling Alphabet Poster Chart (Full Size)</h3>
+        <button id="btn-close-lightbox" class="btn-close" aria-label="Close zoom">&times;</button>
+      </div>
+      <div class="lightbox-body">
+        <img id="lightbox-img" src="assets/asl-alphabet-chart.png" alt="Full Resolution ASL Alphabet Chart" class="lightbox-image">
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="camera.js"></script>
+  <script src="landmarks.js"></script>
+  <script src="recognition.js"></script>
+  <script src="gesture-recognition.js"></script>
+  <script src="sentence.js"></script>
+  <script src="speech.js"></script>
+  <script src="guidance-chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

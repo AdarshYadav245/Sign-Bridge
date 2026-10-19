@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <rect width="120" height="120" rx="16" fill="#1e293b"/>
+  <!-- Flat palm circular chest rub -->
+  <path d="M48 60c0-6 4-10 10-10s10 4 10 10v16H48V60z" stroke="#38bdf8" stroke-width="4"/>
+  <!-- Circular motion arrow -->
+  <path d="M60 36a28 28 0 1 1-24 14" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M36 44l-2 8 8-2" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="60" y="114" fill="#94a3b8" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">PLEASE (Circle)</text>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <rect width="120" height="120" rx="16" fill="#1e293b"/>
+  <!-- Index and Middle snapping down to thumb -->
+  <path d="M40 70l26-15 18 5M40 70l26-6 18 3" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M40 70l18 14 24-8" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <!-- Pinch action arrows -->
+  <path d="M84 55l-4 6m0 0l-5-5" stroke="#f43f5e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M82 80l-3-6m0 0l-5 4" stroke="#f43f5e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="60" y="114" fill="#94a3b8" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">NO (Pinch Snap)</text>
+</svg>
