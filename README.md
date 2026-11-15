@@ -116,7 +116,7 @@ npx serve .
    - Click **Save**.
 3. **Access Your Live HTTPS Site:**
    - Within 1–2 minutes, GitHub Pages will deploy your site at:  
-     `https://<your-username>.github.io/SignBridge/`
+     `https://adarshyadav245.github.io/Sign-Bridge/`
    - *Note:* Webcams require secure contexts (`https://` or `localhost`), so GitHub Pages HTTPS works out of the box!
 
 ---
